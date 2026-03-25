@@ -1,0 +1,5 @@
+{
+  "name": "@node-in-layers/secrets",
+  "description": "The official secrets handling library for Node-in-Layers systems",
+  "isPackage": true
+}
