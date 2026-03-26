@@ -1,7 +1,7 @@
 {
   "name": "@node-in-layers/secrets",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The official secrets handling library for Node-in-Layers systems",
   "main": "index.js",
   "scripts": {
@@ -65,6 +65,7 @@
   "dependencies": {
     "@node-in-layers/core": "^1.15.4",
     "functional-models": "^3.9.0",
+    "json5": "^2.2.3",
     "lodash": "^4.17.23",
     "tsx": "^4.21.0"
   }
