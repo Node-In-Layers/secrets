@@ -35,12 +35,12 @@ export default async () => ({
       // your domains
     ],
   },
-  // Optional: see SecretsConfig — omit or use {} to use the default json file backend.
+  // Optional: omit or use {} to use the built-in default backend chain.
   [SecretsNamespace.Core]: {},
 })
 ```
 
-To use the **default json file** backend instead, omit `secretServiceFactory` (or pass `[SecretsNamespace.Core]: {}`).
+To use the built-in default backends, omit `secretServiceFactory` (or pass `[SecretsNamespace.Core]: {}`). Secrets are looked up in the JSON/JSON5 backend first, then `process.env`, then the `.env` backend.
 
 ## Main Capabilities
 
@@ -53,16 +53,32 @@ To use the **default json file** backend instead, omit `secretServiceFactory` (o
 
 Provides the basic capabilities of storing and retrieving secrets.
 
-Core wires a single `SecretsService`-compatible backend from config and exposes the full string + JSON API (JSON is synthesized from strings when the backend omits JSON methods).
+Core exposes the full string + JSON API (JSON is synthesized from strings when a backend omits JSON methods). When no custom backend factory is configured, the built-in read chain is used.
 
 #### SecretsConfig
 
-`SecretsConfig` (under `[SecretsNamespace.Core]` in system config) resolves a backend in one of two ways only:
+`SecretsConfig` (under `[SecretsNamespace.Core]` in system config) resolves secrets in this order:
 
 1. **`secretServiceFactory`** — `(ctx: CommonContext) => SecretsService | Promise<SecretsService>`. Use during globals when full `ServicesContext` is not available yet (for example `secretsService` from `@node-in-layers/aws`).
-2. **Default** — if `secretServiceFactory` is omitted, the **json file** backend (`secrets.{ENVIRONMENT}.json`) is used.
+2. **Default JSON backend** — tries `secrets.{ENVIRONMENT}.json` and `.json5`.
+3. **Default `env` backend** — if JSON does not contain the key, tries the exact key in `process.env`.
+4. **Default `dotenv` backend** — if neither JSON nor `process.env` contains the key, tries the exact key in `.env`.
+
+The fallback happens per lookup. A JSON secret that exists is returned from JSON; environment backends are only consulted when the earlier backend cannot resolve the requested key. A configured `secretServiceFactory` replaces this built-in chain entirely.
 
 The ordered step ids are exported as **`SECRETS_CONFIG_RESOLUTION`** from this package (for docs and tooling).
+
+#### Local backends
+
+The `env` backend reads an exact key from `process.env`. The `dotenv` backend reads exact keys from a `.env` file without mutating `process.env`. The default file is `.env` in the system working directory. Set `dotenvFilePath` to configure a relative or absolute path:
+
+```typescript
+[SecretsNamespace.Core]: {
+  dotenvFilePath: './config/local.env',
+}
+```
+
+Both local backends are read-only. Missing keys throw an error, and `storeSecret`/`storeSecretJson` are not implemented. Keep `.env` files out of source control.
 
 #### Interface Description
 
@@ -315,3 +331,26 @@ The default file-based backend: secrets are read from JSON or JSON5 files under 
 These files are automatically found at the base of the system directory (working directory) using the environment name.
 `secrets.{ENVIRONMENT}.json`
 `secrets.{ENVIRONMENT}.json5`
+
+### SecretsNamespace.Env (`@node-in-layers/secrets/env`)
+
+The process-environment backend reads a secret using the exact `GetSecretProps.key` value:
+
+```typescript
+process.env.API_TOKEN = 'secret-value'
+await secrets.getStoredSecret({ key: 'API_TOKEN' })
+```
+
+It does not interpret dots as paths and does not modify `process.env`.
+
+### SecretsNamespace.Dotenv (`@node-in-layers/secrets/dotenv`)
+
+The dotenv backend parses a dotenv file and reads the exact key. It defaults to `.env` in the system working directory. Configure another file through `[SecretsNamespace.Core].dotenvFilePath`:
+
+```typescript
+[SecretsNamespace.Core]: {
+  dotenvFilePath: './config/local.env',
+}
+```
+
+Parsing is kept local to the backend; the file is not loaded into or merged into `process.env`.

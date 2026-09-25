@@ -2,6 +2,8 @@ import type { Config, CommonContext } from '@node-in-layers/core'
 import { memoizeValue, ServicesContext } from '@node-in-layers/core/index.js'
 import type { JsonObj } from 'functional-models'
 
+import * as dotenvServices from '../dotenv/services.js'
+import * as envServices from '../env/services.js'
 import * as jsonServices from '../json/services.js'
 import { SecretsNamespace } from '../types.js'
 import type {
@@ -45,10 +47,41 @@ const resolveRawSecretsService = async (
   secretsConfig: SecretsConfig,
   commonGlobals: CommonContext,
   context: ServicesContext<WithSecretsConfig>
-): Promise<SecretsService> =>
-  secretsConfig.secretServiceFactory
-    ? Promise.resolve(secretsConfig.secretServiceFactory(commonGlobals))
-    : jsonServices.create(context as ServicesContext<Config>)
+): Promise<SecretsService> => {
+  if (secretsConfig.secretServiceFactory) {
+    return secretsConfig.secretServiceFactory(commonGlobals)
+  }
+
+  const backends = [
+    jsonServices.create(context as ServicesContext<Config>),
+    envServices.create(),
+    dotenvServices.create(context),
+  ].map(mergeJsonDefaults)
+
+  const getStoredSecret = (props: GetSecretProps): Promise<string> => {
+    return backends.reduce<Promise<string>>(
+      (previous, backend) =>
+        previous.catch(() => backend.getStoredSecret(props)),
+      Promise.reject(new Error(`Secret not found for key: ${props.key}`))
+    )
+  }
+
+  const getStoredJsonSecret = <T extends JsonObj = JsonObj>(
+    props: GetSecretProps
+  ): Promise<T> => {
+    return backends.reduce<Promise<T>>(
+      (previous, backend) =>
+        previous.catch(() => backend.getStoredJsonSecret<T>(props)),
+      Promise.reject(new Error(`Secret not found for key: ${props.key}`))
+    )
+  }
+
+  return {
+    getStoredSecret,
+    getStoredJsonSecret,
+    storeSecret: backends[0].storeSecret,
+  }
+}
 
 export const create = (
   context: ServicesContext<WithSecretsConfig>

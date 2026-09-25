@@ -48,6 +48,8 @@ export type SecretsService = Readonly<{
 export const SECRETS_CONFIG_RESOLUTION = [
   'secretServiceFactory',
   'jsonBackendDefault',
+  'envBackendDefault',
+  'dotenvBackendDefault',
 ] as const
 
 export type SecretsConfigResolutionStep =
@@ -56,16 +58,17 @@ export type SecretsConfigResolutionStep =
 /**
  * Configuration under [SecretsNamespace.Core].
  *
- * Backend resolution follows {@link SECRETS_CONFIG_RESOLUTION}: use {@link SecretsConfig.secretServiceFactory} if set, otherwise the **json file** backend ({@link SecretsNamespace.Json}) is used.
+ * Backend resolution follows {@link SECRETS_CONFIG_RESOLUTION}: use {@link SecretsConfig.secretServiceFactory} if set, otherwise try the built-in JSON, process environment, and dotenv backends in order.
  */
 export type SecretsConfig = Readonly<{
   /**
    * Factory receiving {@link CommonContext} only (no `context.services` from other apps).
-   * Omit to use the default json file secrets backend.
+   * Omit to use the built-in JSON, process environment, and dotenv fallback chain.
    */
   secretServiceFactory?: (
     ctx: CommonContext
   ) => SecretsService | Promise<SecretsService>
+  dotenvFilePath?: string
 }>
 
 export type WithSecretsConfig<TConfig extends Config = Config> = TConfig & {

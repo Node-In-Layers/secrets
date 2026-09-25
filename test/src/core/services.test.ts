@@ -307,4 +307,72 @@ describe('/src/core/services.ts', () => {
       rmSync(dir, { recursive: true, force: true })
     })
   })
+
+  describe('#default backend fallback', () => {
+    it('should use the process environment backend after json misses', async () => {
+      process.env.NIL_TEST_SECRET = 'environment-secret'
+      const context = {
+        config: {},
+        constants: { environment: 'test', workingDirectory: '/tmp' },
+        rootLogger: {} as any,
+        models: {},
+        services: {},
+        log: {} as any,
+      } as ServicesContext<any>
+
+      const secrets = createSecretsCore(context) as FullSecretsService
+      const actual = await secrets.getStoredSecret({ key: 'NIL_TEST_SECRET' })
+
+      assert.equal(actual, 'environment-secret')
+      delete process.env.NIL_TEST_SECRET
+    })
+
+    it('should use the dotenv backend after json and process environment miss', async () => {
+      const dir = makeTempSecretsDir()
+      writeFileSync(
+        join(dir, '.env'),
+        'NIL_TEST_SECRET=dotenv-secret\n',
+        'utf8'
+      )
+      const context = {
+        config: {},
+        constants: { environment: 'test', workingDirectory: dir },
+        rootLogger: {} as any,
+        models: {},
+        services: {},
+        log: {} as any,
+      } as ServicesContext<any>
+
+      const secrets = createSecretsCore(context) as FullSecretsService
+      const actual = await secrets.getStoredSecret({ key: 'NIL_TEST_SECRET' })
+
+      assert.equal(actual, 'dotenv-secret')
+      rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('should prefer secretServiceFactory over the default backends', async () => {
+      const secretServiceFactory = sinon.stub().resolves({
+        getStoredSecret: sinon.stub().resolves('factory-secret'),
+        storeSecret: sinon.stub().resolves(),
+      } as SecretsService)
+      const context = {
+        config: {
+          [SecretsNamespace.Core]: {
+            secretServiceFactory,
+          },
+        },
+        constants: { environment: 'test', workingDirectory: '/tmp' },
+        rootLogger: {} as any,
+        models: {},
+        services: {},
+        log: {} as any,
+      } as ServicesContext<any>
+
+      const secrets = createSecretsCore(context) as FullSecretsService
+      const actual = await secrets.getStoredSecret({ key: 'NIL_TEST_SECRET' })
+
+      assert.equal(actual, 'factory-secret')
+      assert.equal(secretServiceFactory.callCount, 1)
+    })
+  })
 })
