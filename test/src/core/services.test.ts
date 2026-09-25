@@ -18,26 +18,29 @@ describe('/src/core/services.ts', () => {
     mkdtempSync(join(tmpdir(), 'node-in-layers-secrets-'))
 
   describe('#create()', () => {
-    it('should throw when config[SecretsNamespace.Core] is missing', async () => {
+    it('should use the default json backend when config[SecretsNamespace.Core] is missing', async () => {
+      const dir = makeTempSecretsDir()
+      writeFileSync(
+        join(dir, 'secrets.test.json'),
+        JSON.stringify({ my: { key: 'abc' } }),
+        'utf8'
+      )
+
       const context = {
         config: {},
-        constants: { environment: 'test', workingDirectory: '/tmp' },
+        constants: { environment: 'test', workingDirectory: dir },
         rootLogger: {} as any,
         models: {},
         services: {},
         log: {} as any,
       } as any
 
-      let thrown: unknown
-      try {
-        createSecretsCore(context)
-      } catch (e) {
-        thrown = e
-      }
+      const secrets = createSecretsCore(context) as FullSecretsService
+      const actual = await secrets.getStoredSecret({ key: 'my.key' })
+      const expected = 'abc'
 
-      const actual = String((thrown as Error)?.message ?? thrown)
-      const expected = 'config["@node-in-layers/secrets"] is required'
       assert.equal(actual, expected)
+      rmSync(dir, { recursive: true, force: true })
     })
 
     it('should memoize the resolved backend (secretServiceFactory called once)', async () => {

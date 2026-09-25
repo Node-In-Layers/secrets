@@ -135,13 +135,10 @@ describe('/src/config/globals.ts', () => {
       assert.equal(inMemory.getStoredSecret.callCount, 1)
     })
 
-    it('should throw when secrets core is missing from common config', async () => {
+    it('should allow secrets core to be missing when no secrets need resolving', async () => {
       const common = {
         config: {
-          myKey: {
-            type: 'nil-secret',
-            key: '/s1',
-          },
+          myKey: 'not-a-secret-placeholder',
         },
         constants: { environment: 'test', workingDirectory: '/tmp' },
         rootLogger: {} as any,
@@ -149,16 +146,9 @@ describe('/src/config/globals.ts', () => {
         log: {} as any,
       } as CommonContext<any>
 
-      let thrown: unknown
-      try {
-        await createConfigGlobals(common)
-      } catch (e) {
-        thrown = e
-      }
-
-      const actual = String((thrown as Error)?.message ?? thrown)
-      const expectedPattern = 'config["@node-in-layers/secrets"] is required'
-      assert.equal(actual, expectedPattern)
+      const actual = await createConfigGlobals(common)
+      const expected = common.config
+      assert.deepEqual(actual.config, expected)
     })
   })
 })

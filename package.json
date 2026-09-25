@@ -1,7 +1,7 @@
 {
   "name": "@node-in-layers/secrets",
   "type": "module",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "The official secrets handling library for Node-in-Layers systems",
   "main": "index.js",
   "scripts": {

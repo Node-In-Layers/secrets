@@ -69,7 +69,7 @@ export type SecretsConfig = Readonly<{
 }>
 
 export type WithSecretsConfig<TConfig extends Config = Config> = TConfig & {
-  [SecretsNamespace.Core]: SecretsConfig
+  [SecretsNamespace.Core]?: SecretsConfig
 }
 
 export type FullSecretsService = Readonly<{

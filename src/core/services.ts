@@ -53,10 +53,7 @@ const resolveRawSecretsService = async (
 export const create = (
   context: ServicesContext<WithSecretsConfig>
 ): FullSecretsService => {
-  const secretsConfig = context.config[SecretsNamespace.Core]
-  if (secretsConfig === undefined) {
-    throw new Error(`config["${SecretsNamespace.Core}"] is required`)
-  }
+  const secretsConfig = context.config[SecretsNamespace.Core] ?? {}
 
   const commonGlobals: CommonContext = {
     config: context.config,
